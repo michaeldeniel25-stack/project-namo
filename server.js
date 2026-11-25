@@ -1,5 +1,7 @@
 'use strict';
 
+require('dotenv').config(); // Load local SMTP and admin settings from .env
+
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
@@ -97,7 +99,7 @@ function makeReference() { return 'SD-' + new Date().getFullYear() + '-' + crypt
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 const DOCUMENTS = ['Certificate of Enrollment','Certificate of Grades','Good Moral Certificate','Form 137 / Permanent Record','Certificate of Graduation','Other'];
 const PURPOSES = ['School requirement','Job application','Scholarship application','Personal use','Other'];
-const STATUSES = ['Pending','Processing','Rejected','Ready for Pickup','Completed'];
+const STATUSES = ['Processing','Ready for Pickup','Completed'];
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, app: 'SchoolDocs', version: '4.0.0' }));
 app.post('/api/login', (req, res) => {
@@ -130,11 +132,11 @@ app.post('/api/requests', (req, res) => {
   const db = readDB(), now = new Date().toISOString();
   let referenceNumber = makeReference(); while (db.requests.some(r => r.referenceNumber === referenceNumber)) referenceNumber = makeReference();
   const request = { id: 'req-' + crypto.randomUUID(), referenceNumber, studentName, lrn, schoolYear, email, grade, section, contactNumber,
-    documentType, purpose, copies, notes, status: 'Pending', registrarNote: '', createdAt: now, updatedAt: now, completedAt: null,
+    documentType, purpose, copies, notes, status: 'Ready for Pickup', registrarNote: '', createdAt: now, updatedAt: now, completedAt: null,
     emailStatus: 'not_sent', emailSentAt: null, emailError: '',
-    history: [{ status: 'Pending', note: 'Request submitted online.', at: now }] };
+    history: [{ status: 'Ready for Pickup', note: 'Request submitted online.', at: now }] };
   db.requests.push(request); writeDB(db);
-  res.status(201).json({ referenceNumber, request: { referenceNumber, studentName, documentType, status: 'Pending', createdAt: now } });
+  res.status(201).json({ referenceNumber, request: { referenceNumber, studentName, documentType, status: 'Ready for Pickup', createdAt: now } });
 });
 app.get('/api/requests', auth, (_req, res) => { const db = readDB(); db.requests.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)); res.json({ requests: db.requests }); });
 app.get('/api/requests/:id', auth, (req, res) => { const r = readDB().requests.find(x => x.id === req.params.id); if (!r) return res.status(404).json({ error: 'Request not found.' }); res.json({ request: r }); });
